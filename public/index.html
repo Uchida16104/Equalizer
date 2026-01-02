@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Equalizer</title>
+
+  <!-- Tailwind CSS (latest) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- HTMX (latest) -->
+  <script src="https://unpkg.com/htmx.org@latest"></script>
+
+  <!-- Alpine.js (latest) -->
+  <script defer src="https://unpkg.com/alpinejs@latest/dist/cdn.min.js"></script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen p-6">
+
+<div
+  x-data="equalizerApp()"
+  class="max-w-3xl mx-auto space-y-6"
+>
+
+  <h1 class="text-3xl font-bold">Equalizer</h1>
+
+  <!-- Internal navigation using HTMX -->
+  <nav class="space-x-4">
+    <a
+      hx-get="/about.html"
+      hx-target="main"
+      hx-push-url="true"
+      class="underline"
+    >
+      About
+    </a>
+    <a
+      hx-get="/index.html"
+      hx-target="main"
+      hx-push-url="true"
+      class="underline"
+    >
+      Equalizer
+    </a>
+  </nav>
+
+  <main id="main">
+
+    <button
+      @click="initAudio"
+      class="bg-blue-600 px-4 py-2 rounded"
+    >
+      Enable Microphone
+    </button>
+
+    <div class="space-y-4 mt-6">
+
+      <div>
+        <label>Target Frequency (Hz)</label>
+        <input type="range" min="50" max="8000" step="10"
+               x-model="frequency"
+               class="w-full">
+        <div x-text="frequency + ' Hz'"></div>
+      </div>
+
+      <div>
+        <label>Gain (dB)</label>
+        <input type="range" min="-40" max="40" step="1"
+               x-model="gain"
+               class="w-full">
+        <div x-text="gain + ' dB'"></div>
+      </div>
+
+      <div>
+        <label>Volume</label>
+        <input type="range" min="0" max="2" step="0.01"
+               x-model="volume"
+               class="w-full">
+        <div x-text="volume"></div>
+      </div>
+
+    </div>
+
+    <canvas id="fft" class="w-full h-40 bg-black mt-6"></canvas>
+
+  </main>
+</div>
+
+<script>
+function equalizerApp() {
+  return {
+    audioCtx: null,
+    analyser: null,
+    filter: null,
+    gainNode: null,
+    frequency: 1000,
+    gain: 0,
+    volume: 1,
+
+    async initAudio() {
+      try {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        const source = this.audioCtx.createMediaStreamSource(stream);
+
+        this.filter = this.audioCtx.createBiquadFilter();
+        this.filter.type = 'peaking';
+
+        this.gainNode = this.audioCtx.createGain();
+        this.analyser = this.audioCtx.createAnalyser();
+        this.analyser.fftSize = 2048;
+
+        source
+          .connect(this.filter)
+          .connect(this.gainNode)
+          .connect(this.analyser)
+          .connect(this.audioCtx.destination);
+
+        this.updateParams();
+        this.drawFFT();
+
+      } catch (e) {
+        alert("Audio initialization failed: " + e.message);
+      }
+    },
+
+    updateParams() {
+      if (!this.filter || !this.gainNode) return;
+      this.filter.frequency.value = this.frequency;
+      this.filter.gain.value = this.gain;
+      this.gainNode.gain.value = this.volume;
+    },
+
+    drawFFT() {
+      const canvas = document.getElementById("fft");
+      const ctx = canvas.getContext("2d");
+      const data = new Uint8Array(this.analyser.frequencyBinCount);
+
+      const render = () => {
+        this.updateParams();
+        this.analyser.getByteFrequencyData(data);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        data.forEach((v, i) => {
+          ctx.fillRect(i, canvas.height, 1, -v);
+        });
+
+        requestAnimationFrame(render);
+      };
+      render();
+    }
+  }
+}
+</script>
+
+</body>
+</html>
