@@ -46,8 +46,8 @@ export class AudioStudio {
   private bandNodes: Map<string, BandNodes> = new Map();
   private stream: MediaStream | null = null;
   private animationFrameId: number | null = null;
-  private emaBuffer: Float32Array | null = null;
-  private spectrumBuffer: Float32Array | null = null;
+  private spectrumBuffer: Float32Array<ArrayBuffer> | null = null;
+  private emaBuffer: Float32Array<ArrayBuffer> | null = null;
   private fftWorker: Worker | null = null;
   private workerSupported = false;
   private stateListeners: Array<(state: AudioStudioState) => void> = [];
@@ -296,9 +296,7 @@ export class AudioStudio {
     const tick = () => {
       if (!this.state.isRunning || !this.analyserNode || !this.spectrumBuffer || !this.emaBuffer) return;
 
-      this.analyserNode.getFloatFrequencyData(
-        this.spectrumBuffer as Float32Array
-      );
+      this.analyser.getFloatFrequencyData(this.spectrumBuffer);
 
       const n = this.spectrumBuffer.length;
       const alpha = EMA_ALPHA;
