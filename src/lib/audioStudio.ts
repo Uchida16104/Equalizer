@@ -294,9 +294,13 @@ export class AudioStudio {
 
   private startRenderLoop(): void {
     const tick = () => {
-      if (!this.state.isRunning || !this.analyserNode || !this.spectrumBuffer || !this.emaBuffer) return;
+      if (!this.state.isRunning || !this.analyserNode || !this.emaBuffer) return;
 
-      this.analyser.getFloatFrequencyData(this.spectrumBuffer);
+      if (!this.spectrumBuffer || this.spectrumBuffer.length !== this.analyserNode.frequencyBinCount) {
+        this.spectrumBuffer = new Float32Array(this.analyserNode.frequencyBinCount);
+      }
+
+      this.analyserNode.getFloatFrequencyData(this.spectrumBuffer);
 
       const n = this.spectrumBuffer.length;
       const alpha = EMA_ALPHA;
